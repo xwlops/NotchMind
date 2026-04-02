@@ -276,11 +276,11 @@ struct PermissionDetailView: View {
 
                     LabeledContentWrapper<Text>(label: "Requested At", content: formatDate(request.timestamp))
 
-                    LabeledContentWrapper<HStack<Text, Text>>(label: "Status", content: request.status.rawValue.capitalized) {
-                        HStack {
+                    LabeledContentWrapper<AnyView>(label: "Status", content: request.status.rawValue.capitalized) {
+                        AnyView(HStack {
                             statusBadge
                             Text(request.status.rawValue.capitalized)
-                        }
+                        })
                     }
                 }
 
