@@ -62,7 +62,7 @@ final class PerformanceMonitor: ObservableObject {
 
         if result == KERN_SUCCESS, let info = cpuInfo {
             var totalUsage: Double = 0.0
-            let numCPUs = Int(numCpuInfo) / CPU_STATE_MAX
+            let numCPUs = Int(numCpuInfo) / Int(CPU_STATE_MAX)
 
             for i in 0..<numCPUs {
                 let offset = Int(CPU_STATE_USER) + (i * Int(CPU_STATE_MAX))

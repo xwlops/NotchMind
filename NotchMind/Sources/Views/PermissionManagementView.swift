@@ -6,6 +6,30 @@ struct PermissionManagementView: View {
     @State private var selectedRequest: PermissionRequest?
 
     var body: some View {
+        if #available(macOS 13.0, *) {
+            ModernPermissionManagementView(
+                selectedCategory: $selectedCategory,
+                selectedRequest: $selectedRequest
+            )
+            .environmentObject(appState)
+        } else {
+            LegacyPermissionManagementView(
+                selectedCategory: $selectedCategory,
+                selectedRequest: $selectedRequest
+            )
+            .environmentObject(appState)
+        }
+    }
+}
+
+// MARK: - macOS 13+ Implementation
+@available(macOS 13.0, *)
+struct ModernPermissionManagementView: View {
+    @EnvironmentObject var appState: AppState
+    @Binding var selectedCategory: PermissionCategory
+    @Binding var selectedRequest: PermissionRequest?
+
+    var body: some View {
         NavigationSplitView {
             // Sidebar with categories
             List {
@@ -45,12 +69,11 @@ struct PermissionManagementView: View {
                 }
             }
             .listStyle(SidebarListStyle())
-            .modifier(NavigationSplitViewColumnWidthModifier())
+            .navigationSplitViewColumnWidth(min: 200, ideal: 250)
         } content: {
-            // Main content - filtered permissions based on selection
             PermissionRequestsList(selectedCategory: selectedCategory, permissions: appState.pendingPermissions)
+                .navigationSplitViewColumnWidth(min: 400, ideal: 500)
         } detail: {
-            // Detail view when a permission is selected
             if let selectedRequest = selectedRequest {
                 PermissionDetailView(request: selectedRequest)
             } else {
@@ -61,13 +84,77 @@ struct PermissionManagementView: View {
     }
 }
 
-struct NavigationSplitViewColumnWidthModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        Group {
-            if #available(macOS 13.0, *) {
-                content.navigationSplitViewColumnWidth(min: 200, ideal: 250)
+// MARK: - macOS 12 Legacy Implementation
+struct LegacyPermissionManagementView: View {
+    @EnvironmentObject var appState: AppState
+    @Binding var selectedCategory: PermissionCategory
+    @Binding var selectedRequest: PermissionRequest?
+
+    var body: some View {
+        NavigationView {
+            // Sidebar
+            List {
+                Button(action: { selectedCategory = .all }) {
+                    Label("All Requests", systemImage: "list.bullet")
+                        .foregroundColor(selectedCategory == .all ? .accentColor : .primary)
+                }
+
+                Section("By Risk Level") {
+                    Button(action: { selectedCategory = .highRisk }) {
+                        Label("High Risk", systemImage: "exclamationmark.triangle.fill")
+                            .foregroundColor(selectedCategory == .highRisk ? .accentColor : .primary)
+                    }
+                    Button(action: { selectedCategory = .mediumRisk }) {
+                        Label("Medium Risk", systemImage: "exclamationmark.triangle")
+                            .foregroundColor(selectedCategory == .mediumRisk ? .accentColor : .primary)
+                    }
+                    Button(action: { selectedCategory = .lowRisk }) {
+                        Label("Low Risk", systemImage: "checkmark.circle")
+                            .foregroundColor(selectedCategory == .lowRisk ? .accentColor : .primary)
+                    }
+                }
+
+                Section("By Status") {
+                    Button(action: { selectedCategory = .pending }) {
+                        Label("Pending", systemImage: "clock")
+                            .foregroundColor(selectedCategory == .pending ? .accentColor : .primary)
+                    }
+                    Button(action: { selectedCategory = .approved }) {
+                        Label("Approved", systemImage: "checkmark.circle.fill")
+                            .foregroundColor(selectedCategory == .approved ? .accentColor : .primary)
+                    }
+                    Button(action: { selectedCategory = .denied }) {
+                        Label("Denied", systemImage: "xmark.circle.fill")
+                            .foregroundColor(selectedCategory == .denied ? .accentColor : .primary)
+                    }
+                }
+            }
+            .listStyle(SidebarListStyle())
+            .frame(minWidth: 200, idealWidth: 250)
+
+            // Main content
+            PermissionRequestsList(selectedCategory: selectedCategory, permissions: appState.pendingPermissions)
+                .frame(minWidth: 400, idealWidth: 500)
+
+            // Detail view
+            if let selectedRequest = selectedRequest {
+                PermissionDetailView(request: selectedRequest)
             } else {
-                content
+                Text("Select a permission request to view details")
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+}
+            // Main content - filtered permissions based on selection
+            PermissionRequestsList(selectedCategory: selectedCategory, permissions: appState.pendingPermissions)
+        } detail: {
+            // Detail view when a permission is selected
+            if let selectedRequest = selectedRequest {
+                PermissionDetailView(request: selectedRequest)
+            } else {
+                Text("Select a permission request to view details")
+                    .foregroundColor(.secondary)
             }
         }
     }
@@ -114,25 +201,12 @@ struct PermissionRequestsList: View {
             PermissionRequestRow(request: $0)
         }
         .listStyle(PlainListStyle())
-        .modifier(NavigationSplitViewColumnWidthModifier2())
         .onChange(of: selectedRequest) { _ in
             // Handle selection change if needed
         }
     }
 
     @State private var selectedRequest: PermissionRequest?
-}
-
-struct NavigationSplitViewColumnWidthModifier2: ViewModifier {
-    func body(content: Content) -> some View {
-        Group {
-            if #available(macOS 13.0, *) {
-                content.navigationSplitViewColumnWidth(min: 400, ideal: 500)
-            } else {
-                content
-            }
-        }
-    }
 }
 
 struct PermissionRequestRow: View {

@@ -17,6 +17,8 @@ struct NotchMindApp: App {
         MenuBarExtra("NotchMind", systemImage: "cpu") {
             MenuBarView(appState: appDelegate.appState)
         }
+        #if available(macOS 13.0, *)
         .menuBarExtraStyle(.menu)
+        #endif
     }
 }

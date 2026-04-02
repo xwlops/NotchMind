@@ -7,6 +7,7 @@ final class AppState: ObservableObject {
 
     @Published var isMonitoring: Bool = false
     @Published var monitoredTools: [AITool] = []
+    @Published var detectedTools: [AITool] = []  // Exposed for view access
     @Published var pendingPermissions: [PermissionRequest] = []
     @Published var memoryUsage: Double = 0.0
     @Published var cpuUsage: Double = 0.0
@@ -36,6 +37,10 @@ final class AppState: ObservableObject {
         aiMonitorService.$detectedTools
             .receive(on: DispatchQueue.main)
             .assign(to: &$monitoredTools)
+
+        aiMonitorService.$detectedTools
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$detectedTools)
 
         aiMonitorService.$isMonitoring
             .receive(on: DispatchQueue.main)
