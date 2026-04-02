@@ -1,0 +1,94 @@
+name: Build NotchMind
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+
+      - name: Generate Xcode project
+        run: |
+          cd NotchMind
+          xcodegen generate
+
+      - name: Build NotchMind
+        run: |
+          cd NotchMind
+          xcodebuild -project NotchMind.xcodeproj \
+            -scheme NotchMind \
+            -configuration Release \
+            -derivedDataPath build \
+            build
+
+      - name: Create DMG
+        run: |
+          # Find the built app
+          APP_PATH=$(find build/Build/Products/Release -name "NotchMind.app" -type d | head -1)
+          echo "App path: $APP_PATH"
+
+          # Create DMG using create-dmg
+          brew install create-dmg
+          create-dmg \
+            --volname "NotchMind" \
+            --volicon "NotchMind/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.icns" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "NotchMind.app" 150 185 \
+            --hide-extension "NotchMind.app" \
+            --app-drop-link 450 185 \
+            "NotchMind-${{ github.sha }}.dmg" \
+            "$APP_PATH" || true
+
+          # Fallback: Simple DMG without custom icon
+          if [ ! -f "NotchMind-${{ github.sha }}.dmg" ]; then
+            create-dmg --volname "NotchMind" "NotchMind-${{ github.sha }}.dmg" "$APP_PATH"
+          fi
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: NotchMind-DMG
+          path: NotchMind/NotchMind-*.dmg
+          retention-days: 7
+
+      - name: Upload App
+        uses: actions/upload-artifact@v4
+        with:
+          name: NotchMind-App
+          path: |
+            build/Build/Products/Release/NotchMind.app
+          retention-days: 7
+
+  release:
+    needs: build
+    runs-on: macos-14
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Download DMG
+        uses: actions/download-artifact@v4
+        with:
+          name: NotchMind-DMG
+          path: .
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: NotchMind-*.dmg
+          draft: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,467 @@
+import Foundation
+import Combine
+
+// MARK: - Module Interface Protocols
+protocol ModuleProtocol {
+    var moduleId: UUID { get }
+    var moduleName: String { get }
+    var moduleVersion: String { get }
+    var isActive: Bool { get }
+    var status: ModuleStatus { get }
+
+    func initialize() async throws
+    func deinitialize() async throws
+    func start() async throws
+    func stop() async throws
+    func update(configuration: ModuleConfiguration) async throws
+}
+
+protocol ModuleEventPublisher {
+    func subscribe<T>(to eventType: T.Type, observer: ObjectIdentifier, handler: @escaping (T) -> Void) where T: ModuleEvent
+    func unsubscribe(observer: ObjectIdentifier)
+    func publish<T>(_ event: T) where T: ModuleEvent
+}
+
+protocol ModuleConfigurationProvider {
+    func getConfiguration(for moduleId: UUID) -> ModuleConfiguration?
+    func setConfiguration(_ config: ModuleConfiguration, for moduleId: UUID) throws
+    func observeConfigurationChanges(for moduleId: UUID) -> AnyPublisher<ModuleConfiguration, Never>
+}
+
+// MARK: - Module Events
+protocol ModuleEvent {
+    var eventId: UUID { get }
+    var timestamp: Date { get }
+    var sourceModuleId: UUID { get }
+}
+
+struct ToolStatusChangedEvent: ModuleEvent {
+    let eventId: UUID
+    let timestamp: Date
+    let sourceModuleId: UUID
+    let toolId: UUID
+    let oldStatus: AITool.ToolStatus
+    let newStatus: AITool.ToolStatus
+}
+
+struct PermissionStatusChangedEvent: ModuleEvent {
+    let eventId: UUID
+    let timestamp: Date
+    let sourceModuleId: UUID
+    let permissionId: UUID
+    let oldStatus: PermissionRequest.PermissionStatus
+    let newStatus: PermissionRequest.PermissionStatus
+}
+
+struct SecurityEventOccurred: ModuleEvent {
+    let eventId: UUID
+    let timestamp: Date
+    let sourceModuleId: UUID
+    let securityEvent: SecurityEvent
+}
+
+// MARK: - Module Configuration
+struct ModuleConfiguration {
+    let moduleId: UUID
+    var properties: [String: Any]
+    var lastModified: Date
+
+    init(moduleId: UUID, properties: [String: Any] = [:]) {
+        self.moduleId = moduleId
+        self.properties = properties
+        self.lastModified = Date()
+    }
+
+    mutating func setProperty(_ key: String, value: Any) {
+        properties[key] = value
+        lastModified = Date()
+    }
+
+    func getProperty<T>(_ key: String, as type: T.Type) -> T? {
+        return properties[key] as? T
+    }
+}
+
+enum ModuleStatus: String {
+    case uninitialized
+    case initializing
+    case ready
+    case running
+    case paused
+    case stopping
+    case stopped
+    case error
+}
+
+// MARK: - Optimized Module Manager
+class ModuleManager: ObservableObject {
+    static let shared = ModuleManager()
+
+    @Published var activeModules: [UUID: ModuleProtocol] = [:]
+    @Published var moduleConfigurations: [UUID: ModuleConfiguration] = [:]
+    @Published var moduleDependencies: [UUID: [UUID]] = [:]
+
+    private let eventPublisher: EventPublisher
+    private var cancellables: Set<AnyCancellable> = []
+
+    private init() {
+        eventPublisher = EventPublisher()
+        setupDefaultModules()
+    }
+
+    // Initialize the manager with default modules
+    private func setupDefaultModules() {
+        // Set up default configurations for core modules
+        let aiMonitorConfig = ModuleConfiguration(
+            moduleId: AIToolMonitorService().moduleId,
+            properties: [
+                "scanInterval": 2.0,
+                "enableNotifications": true,
+                "monitorAllTools": true
+            ]
+        )
+        moduleConfigurations[aiMonitorConfig.moduleId] = aiMonitorConfig
+
+        let perfMonitorConfig = ModuleConfiguration(
+            moduleId: PerformanceMonitor().moduleId,
+            properties: [
+                "samplingInterval": 1.0,
+                "enableCPU": true,
+                "enableMemory": true,
+                "enableDiskIO": false
+            ]
+        )
+        moduleConfigurations[perfMonitorConfig.moduleId] = perfMonitorConfig
+    }
+
+    // Register a module
+    func register(module: ModuleProtocol) throws {
+        guard !activeModules.keys.contains(module.moduleId) else {
+            throw ModuleError.moduleAlreadyRegistered
+        }
+
+        activeModules[module.moduleId] = module
+        setupModuleDependencies(for: module)
+    }
+
+    // Initialize a module
+    func initialize(moduleId: UUID) async throws {
+        guard let module = activeModules[moduleId] else {
+            throw ModuleError.moduleNotFound
+        }
+
+        if module.isActive {
+            return // Already initialized
+        }
+
+        // Initialize dependencies first
+        let dependencies = moduleDependencies[moduleId] ?? []
+        for dependencyId in dependencies {
+            if let depModule = activeModules[dependencyId], !depModule.isActive {
+                try await initialize(moduleId: dependencyId)
+            }
+        }
+
+        try await module.initialize()
+    }
+
+    // Start a module
+    func start(moduleId: UUID) async throws {
+        guard let module = activeModules[moduleId] else {
+            throw ModuleError.moduleNotFound
+        }
+
+        if module.status == .running {
+            return // Already running
+        }
+
+        try await module.start()
+    }
+
+    // Stop a module
+    func stop(moduleId: UUID) async throws {
+        guard let module = activeModules[moduleId] else {
+            throw ModuleError.moduleNotFound
+        }
+
+        if module.status != .running {
+            return // Already stopped
+        }
+
+        try await module.stop()
+    }
+
+    // Unregister a module
+    func unregister(moduleId: UUID) throws {
+        guard let module = activeModules[moduleId] else {
+            throw ModuleError.moduleNotFound
+        }
+
+        if module.isActive {
+            try Task.checkCancellation()
+            try await module.deinitialize()
+        }
+
+        activeModules.removeValue(forKey: moduleId)
+        moduleConfigurations.removeValue(forKey: moduleId)
+        moduleDependencies.removeValue(forKey: moduleId)
+    }
+
+    // Get module by ID
+    func getModule<T: ModuleProtocol>(ofType type: T.Type, withId id: UUID) -> T? {
+        return activeModules[id] as? T
+    }
+
+    // Subscribe to module events
+    func subscribe<T>(to eventType: T.Type, moduleId: UUID, handler: @escaping (T) -> Void) where T: ModuleEvent {
+        let observerId = ObjectIdentifier(ModuleManager.self) // Use manager instance as observer ID
+        eventPublisher.subscribe(to: eventType, observer: observerId, handler: handler)
+    }
+
+    // Publish module event
+    func publish<T: ModuleEvent>(_ event: T) {
+        eventPublisher.publish(event)
+    }
+
+    // Get module configuration
+    func getConfiguration(for moduleId: UUID) -> ModuleConfiguration? {
+        return moduleConfigurations[moduleId]
+    }
+
+    // Update module configuration
+    func updateConfiguration(_ config: ModuleConfiguration) throws {
+        moduleConfigurations[config.moduleId] = config
+    }
+
+    // MARK: - Private Methods
+    private func setupModuleDependencies(for module: ModuleProtocol) {
+        // Define dependencies based on module type
+        var dependencies: [UUID] = []
+
+        switch module {
+        case is AIToolMonitorService:
+            // AI Monitor doesn't have specific dependencies
+            break
+        case is PerformanceMonitor:
+            // Performance Monitor doesn't have specific dependencies
+            break
+        case is PermissionManager:
+            // Permission Manager doesn't have specific dependencies
+            break
+        case is TerminalIntegrator:
+            // Terminal Integrator doesn't have specific dependencies
+            break
+        default:
+            break
+        }
+
+        if !dependencies.isEmpty {
+            moduleDependencies[module.moduleId] = dependencies
+        }
+    }
+}
+
+// MARK: - Event Publisher Implementation
+class EventPublisher: ModuleEventPublisher {
+    private var subscribers: [ObjectIdentifier: [AnySubscriberBox]] = [:]
+    private let queue = DispatchQueue(label: "event.publisher.queue", attributes: .concurrent)
+
+    func subscribe<T>(to eventType: T.Type, observer: ObjectIdentifier, handler: @escaping (T) -> Void) where T: ModuleEvent {
+        let subscriber = SubscriberBox(handler: handler)
+        queue.async(flags: .barrier) {
+            if self.subscribers[observer] == nil {
+                self.subscribers[observer] = []
+            }
+            self.subscribers[observer]?.append(subscriber)
+        }
+    }
+
+    func unsubscribe(observer: ObjectIdentifier) {
+        queue.async(flags: .barrier) {
+            self.subscribers.removeValue(forKey: observer)
+        }
+    }
+
+    func publish<T>(_ event: T) where T: ModuleEvent {
+        let localSubscribers = queue.sync {
+            subscribers.values.flatMap { $0 }
+        }
+
+        for subscriber in localSubscribers {
+            subscriber.receive(event)
+        }
+    }
+
+    private class SubscriberBox<Event: ModuleEvent>: AnySubscriberBox {
+        private let handler: (Event) -> Void
+
+        init(handler: @escaping (Event) -> Void) {
+            self.handler = handler
+        }
+
+        func receive(_ event: ModuleEvent) {
+            if let typedEvent = event as? Event {
+                handler(typedEvent)
+            }
+        }
+    }
+
+    private class AnySubscriberBox {
+        func receive(_ event: ModuleEvent) {}
+    }
+}
+
+// MARK: - Module Errors
+enum ModuleError: LocalizedError {
+    case moduleNotFound
+    case moduleAlreadyRegistered
+    case initializationFailed(String)
+    case operationFailed(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .moduleNotFound:
+            return "Module not found"
+        case .moduleAlreadyRegistered:
+            return "Module already registered"
+        case .initializationFailed(let reason):
+            return "Module initialization failed: \(reason)"
+        case .operationFailed(let reason):
+            return "Module operation failed: \(reason)"
+        }
+    }
+}
+
+// MARK: - Extensions for existing modules to conform to ModuleProtocol
+extension AIToolMonitorService: ModuleProtocol {
+    var moduleId: UUID {
+        return UUID(uuidString: "00000000-0000-0000-0000-AIToolMonitorService") ?? UUID()
+    }
+
+    var moduleName: String {
+        return "AI Tool Monitor"
+    }
+
+    var moduleVersion: String {
+        return "1.0.0"
+    }
+
+    var isActive: Bool {
+        return isMonitoring
+    }
+
+    var status: ModuleStatus {
+        return isMonitoring ? .running : .stopped
+    }
+
+    func initialize() async throws {
+        // Already initialized in init()
+    }
+
+    func deinitialize() async throws {
+        stopMonitoring()
+    }
+
+    func start() async throws {
+        startMonitoring()
+    }
+
+    func stop() async throws {
+        stopMonitoring()
+    }
+
+    func update(configuration: ModuleConfiguration) async throws {
+        if let scanInterval = configuration.getProperty("scanInterval", as: TimeInterval.self) {
+            // Would need to add a setter for scanInterval in the original class
+            // For now, just log the configuration change
+            print("AI Tool Monitor configuration updated: scanInterval = \(scanInterval)")
+        }
+    }
+}
+
+extension PerformanceMonitor: ModuleProtocol {
+    var moduleId: UUID {
+        return UUID(uuidString: "00000000-0000-0000-0000-PerformanceMonitor") ?? UUID()
+    }
+
+    var moduleName: String {
+        return "Performance Monitor"
+    }
+
+    var moduleVersion: String {
+        return "1.0.0"
+    }
+
+    var isActive: Bool {
+        return isMonitoring
+    }
+
+    var status: ModuleStatus {
+        return isMonitoring ? .running : .stopped
+    }
+
+    func initialize() async throws {
+        // Already initialized in init()
+    }
+
+    func deinitialize() async throws {
+        stopMonitoring()
+    }
+
+    func start() async throws {
+        startMonitoring()
+    }
+
+    func stop() async throws {
+        stopMonitoring()
+    }
+
+    func update(configuration: ModuleConfiguration) async throws {
+        if let samplingInterval = configuration.getProperty("samplingInterval", as: TimeInterval.self) {
+            // Would need to add a setter for samplingInterval in the original class
+            print("Performance Monitor configuration updated: samplingInterval = \(samplingInterval)")
+        }
+    }
+}
+
+extension PermissionManager: ModuleProtocol {
+    var moduleId: UUID {
+        return UUID(uuidString: "00000000-0000-0000-0000-PermissionManager") ?? UUID()
+    }
+
+    var moduleName: String {
+        return "Permission Manager"
+    }
+
+    var moduleVersion: String {
+        return "1.0.0"
+    }
+
+    var isActive: Bool {
+        return true // Always active
+    }
+
+    var status: ModuleStatus {
+        return .ready
+    }
+
+    func initialize() async throws {
+        // Already initialized in init()
+    }
+
+    func deinitialize() async throws {
+        // Nothing needed
+    }
+
+    func start() async throws {
+        // Nothing needed
+    }
+
+    func stop() async throws {
+        // Nothing needed
+    }
+
+    func update(configuration: ModuleConfiguration) async throws {
+        // Handle permission manager configuration
+    }
+}

@@ -1,0 +1,24 @@
+# macOS
+.DS_Store
+*.swp
+*~
+
+# Xcode
+build/
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/
+
+# OMC
+.omc/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Test
+Tests/.DS_Store
