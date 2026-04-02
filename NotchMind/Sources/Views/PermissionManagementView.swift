@@ -382,13 +382,20 @@ struct LabeledContentWrapper<Content>: View where Content: View {
     let label: String
     let content: String
     let color: Color?
-    let customContent: (() -> Content)?
+    let customContent: Content?
 
-    init(label: String, content: String, color: Color? = nil, @ViewBuilder contentBuilder: @escaping () -> Content = { EmptyView() }) {
+    init(label: String, content: String, color: Color? = nil) {
         self.label = label
         self.content = content
         self.color = color
-        self.customContent = contentBuilder()
+        self.customContent = nil
+    }
+
+    init(label: String, content: String, color: Color? = nil, @ViewBuilder customContent: () -> Content) {
+        self.label = label
+        self.content = content
+        self.color = color
+        self.customContent = customContent()
     }
 
     var body: some View {
