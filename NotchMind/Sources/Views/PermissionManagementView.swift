@@ -266,20 +266,17 @@ struct PermissionDetailView: View {
                     Text("Details")
                         .font(.headline)
 
-                    LabeledContentWrapper(label: "Request Type", content: request.permissionType.rawValue)
+                    LabeledContentWrapper<Text>(label: "Request Type", content: request.permissionType.rawValue)
 
-                    LabeledContentWrapper(
+                    LabeledContentWrapper<Text>(
                         label: "Risk Level",
                         content: request.permissionType.riskLevel.rawValue.capitalized,
                         color: riskLevelColor
                     )
 
-                    LabeledContentWrapper(label: "Requested At", content: formatDate(request.timestamp))
+                    LabeledContentWrapper<Text>(label: "Requested At", content: formatDate(request.timestamp))
 
-                    LabeledContentWrapper(
-                        label: "Status",
-                        content: request.status.rawValue.capitalized
-                    ) {
+                    LabeledContentWrapper<HStack<Text, Text>>(label: "Status", content: request.status.rawValue.capitalized) {
                         HStack {
                             statusBadge
                             Text(request.status.rawValue.capitalized)
