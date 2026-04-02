@@ -1,0 +1,44 @@
+  name: Build NotchMind
+
+  on:
+    push:
+      branches: [main, master]
+    workflow_dispatch:
+
+  jobs:
+    build:
+      runs-on: macos-14
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
+
+        - name: Install XcodeGen
+          run: brew install xcodegen
+
+        - name: Generate Xcode project
+          run: |
+            cd NotchMind
+            xcodegen generate
+
+        - name: Build NotchMind
+          run: |
+            cd NotchMind
+            xcodebuild -project NotchMind.xcodeproj \
+              -scheme NotchMind \
+              -configuration Release \
+              -derivedDataPath build \
+              build
+
+        - name: Create DMG
+          run: |
+            brew install create-dmg
+            APP_PATH=$(find build/Build/Products/Release -name
+  "NotchMind.app" -type d | head -1)
+            create-dmg --volname "NotchMind" "NotchMind-${{ github.sha
+  }}.dmg" "$APP_PATH"
+
+        - name: Upload DMG
+          uses: actions/upload-artifact@v4
+          with:
+            name: NotchMind-DMG
+            path: NotchMind/NotchMind-*.dmg
