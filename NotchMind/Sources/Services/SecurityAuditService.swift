@@ -84,7 +84,7 @@ class SecurityAuditManager: SecurityAuditing, ObservableObject {
             toolId: toolId,
             accessType: accessType,
             timestamp: timestamp,
-            result: .allowed
+            result: AuditResult(allowed: true
         )
 
         auditHistory.append(record)
@@ -130,7 +130,7 @@ class SecurityAuditManager: SecurityAuditing, ObservableObject {
             toolId: toolId,
             accessType: accessType,
             timestamp: timestamp,
-            result: .allowed
+            result: AuditResult(allowed: true
         )
 
         auditHistory.append(record)
@@ -174,7 +174,7 @@ class SecurityAuditManager: SecurityAuditing, ObservableObject {
             toolId: toolId,
             accessType: .network,
             timestamp: timestamp,
-            result: .allowed
+            result: AuditResult(allowed: true
         )
 
         auditHistory.append(record)
@@ -386,9 +386,9 @@ struct PolicyRule {
         case .contains:
             return contextValue.localizedCaseInsensitiveContains(condition.value)
         case .startsWith:
-            return contextValue.localizedCaseInsensitiveHasPrefix(condition.value)
+            return contextValue.lowercased().hasPrefix(condition.value)
         case .endsWith:
-            return contextValue.localizedCaseInsensitiveHasSuffix(condition.value)
+            return contextValue.lowercased().hasSuffix(condition.value)
         case .greaterThan:
             return Double(contextValue) ?? 0 > Double(condition.value) ?? 0
         case .lessThan:
