@@ -12,6 +12,8 @@ settings:
     SWIFT_VERSION: "5.9"
     MACOSX_DEPLOYMENT_TARGET: "12.0"
     CODE_SIGN_STYLE: Automatic
+    EXCLUDED_ARCHS[sdk=macosx*]: x86_64
+    ONLY_ACTIVE_ARCH: YES
 
 targets:
   NotchMind:
