@@ -26,7 +26,7 @@ final class TerminalIntegrator {
     func openTerminalInDirectory(_ directory: String) {
         guard let url = URL(string: "file://\(directory)") else { return }
 
-        if let app = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == iTermBundleId }) {
+        if NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == iTermBundleId }) != nil {
             // Open in iTerm if available
             NSWorkspace.shared.open(url)
         } else {
