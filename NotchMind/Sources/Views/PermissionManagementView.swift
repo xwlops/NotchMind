@@ -2,27 +2,29 @@ import SwiftUI
 
 struct PermissionManagementView: View {
     @EnvironmentObject var appState: AppState
+    @State private var selectedCategory: PermissionCategory = .all
+    @State private var selectedRequest: PermissionRequest?
 
     var body: some View {
         NavigationSplitView {
             // Sidebar with categories
             List(selection: $selectedCategory) {
-                NavigationLink("All Requests", value: .all)
+                NavigationLink("All Requests", value: PermissionCategory.all)
 
                 Section("By Risk Level") {
-                    NavigationLink("High Risk", value: .highRisk)
-                    NavigationLink("Medium Risk", value: .mediumRisk)
-                    NavigationLink("Low Risk", value: .lowRisk)
+                    NavigationLink("High Risk", value: PermissionCategory.highRisk)
+                    NavigationLink("Medium Risk", value: PermissionCategory.mediumRisk)
+                    NavigationLink("Low Risk", value: PermissionCategory.lowRisk)
                 }
 
                 Section("By Status") {
-                    NavigationLink("Pending", value: .pending)
-                    NavigationLink("Approved", value: .approved)
-                    NavigationLink("Denied", value: .denied)
+                    NavigationLink("Pending", value: PermissionCategory.pending)
+                    NavigationLink("Approved", value: PermissionCategory.approved)
+                    NavigationLink("Denied", value: PermissionCategory.denied)
                 }
             }
-            .navigationSplitViewColumnWidth(min: 200, ideal: 250)
             .listStyle(SidebarListStyle())
+            .modifier(NavigationSplitViewColumnWidthModifier())
         } content: {
             // Main content - filtered permissions based on selection
             PermissionRequestsList(selectedCategory: selectedCategory, permissions: appState.pendingPermissions)
@@ -36,9 +38,18 @@ struct PermissionManagementView: View {
             }
         }
     }
+}
 
-    @State private var selectedCategory: PermissionCategory = .all
-    @State private var selectedRequest: PermissionRequest?
+struct NavigationSplitViewColumnWidthModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        Group {
+            if #available(macOS 13.0, *) {
+                content.navigationSplitViewColumnWidth(min: 200, ideal: 250)
+            } else {
+                content
+            }
+        }
+    }
 }
 
 // MARK: - Supporting Enums and Structures
@@ -82,13 +93,25 @@ struct PermissionRequestsList: View {
             PermissionRequestRow(request: $0)
         }
         .listStyle(PlainListStyle())
-        .navigationSplitViewColumnWidth(min: 400, ideal: 500)
+        .modifier(NavigationSplitViewColumnWidthModifier2())
         .onChange(of: selectedRequest) { _ in
             // Handle selection change if needed
         }
     }
 
     @State private var selectedRequest: PermissionRequest?
+}
+
+struct NavigationSplitViewColumnWidthModifier2: ViewModifier {
+    func body(content: Content) -> some View {
+        Group {
+            if #available(macOS 13.0, *) {
+                content.navigationSplitViewColumnWidth(min: 400, ideal: 500)
+            } else {
+                content
+            }
+        }
+    }
 }
 
 struct PermissionRequestRow: View {
@@ -121,7 +144,7 @@ struct PermissionRequestRow: View {
                 HStack {
                     Text(formatDate(request.timestamp))
                         .font(.caption2)
-                        .foregroundColor(.tertiary)
+                        .foregroundColor(Color.secondary.opacity(0.8))
 
                     Spacer()
 
@@ -243,20 +266,20 @@ struct PermissionDetailView: View {
                     Text("Details")
                         .font(.headline)
 
-                    LabeledContent("Request Type") {
-                        Text(request.permissionType.rawValue)
-                    }
+                    LabeledContentWrapper(label: "Request Type", content: request.permissionType.rawValue)
 
-                    LabeledContent("Risk Level") {
-                        Text(request.permissionType.riskLevel.rawValue.capitalized)
-                            .foregroundColor(riskLevelColor)
-                    }
+                    LabeledContentWrapper(
+                        label: "Risk Level",
+                        content: request.permissionType.riskLevel.rawValue.capitalized,
+                        color: riskLevelColor
+                    )
 
-                    LabeledContent("Requested At") {
-                        Text(formatDate(request.timestamp))
-                    }
+                    LabeledContentWrapper(label: "Requested At", content: formatDate(request.timestamp))
 
-                    LabeledContent("Status") {
+                    LabeledContentWrapper(
+                        label: "Status",
+                        content: request.status.rawValue.capitalized
+                    ) {
                         HStack {
                             statusBadge
                             Text(request.status.rawValue.capitalized)
@@ -352,5 +375,50 @@ struct PermissionDetailView: View {
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+}
+
+struct LabeledContentWrapper<Content>: View where Content: View {
+    let label: String
+    let content: String
+    let color: Color?
+    let customContent: (() -> Content)?
+
+    init(label: String, content: String, color: Color? = nil, @ViewBuilder contentBuilder: @escaping () -> Content = { EmptyView() }) {
+        self.label = label
+        self.content = content
+        self.color = color
+        self.customContent = contentBuilder()
+    }
+
+    var body: some View {
+        Group {
+            if #available(macOS 13.0, *) {
+                if let customContent = customContent {
+                    LabeledContent(label) {
+                        customContent
+                    }
+                } else {
+                    if let color = color {
+                        LabeledContent(label) {
+                            Text(content).foregroundColor(color)
+                        }
+                    } else {
+                        LabeledContent(label, value: content)
+                    }
+                }
+            } else {
+                HStack {
+                    Text("\(label):")
+                        .fontWeight(.bold)
+                    Spacer()
+                    if let color = color {
+                        Text(content).foregroundColor(color)
+                    } else {
+                        Text(content)
+                    }
+                }
+            }
+        }
     }
 }

@@ -46,7 +46,7 @@ struct SecurityReport {
     let timestamp: Date
     let totalAudits: Int
     let suspiciousActivities: [SecurityEvent]
-    let riskSummary: [RiskLevel: Int]
+    let riskSummary: [AuditResult.RiskLevel: Int]
     let recommendations: [String]
 }
 
@@ -84,7 +84,12 @@ class SecurityAuditManager: SecurityAuditing, ObservableObject {
             toolId: toolId,
             accessType: accessType,
             timestamp: timestamp,
-            result: AuditResult(allowed: true
+            result: AuditResult(
+                allowed: true,
+                reason: "Access granted",
+                timestamp: timestamp,
+                riskLevel: .low
+            )
         )
 
         auditHistory.append(record)
@@ -130,7 +135,12 @@ class SecurityAuditManager: SecurityAuditing, ObservableObject {
             toolId: toolId,
             accessType: accessType,
             timestamp: timestamp,
-            result: AuditResult(allowed: true
+            result: AuditResult(
+                allowed: true,
+                reason: "Access granted",
+                timestamp: timestamp,
+                riskLevel: .low
+            )
         )
 
         auditHistory.append(record)
@@ -174,7 +184,12 @@ class SecurityAuditManager: SecurityAuditing, ObservableObject {
             toolId: toolId,
             accessType: .network,
             timestamp: timestamp,
-            result: AuditResult(allowed: true
+            result: AuditResult(
+                allowed: true,
+                reason: "Access granted",
+                timestamp: timestamp,
+                riskLevel: .low
+            )
         )
 
         auditHistory.append(record)
