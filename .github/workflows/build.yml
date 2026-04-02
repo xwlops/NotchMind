@@ -15,9 +15,9 @@ jobs:
       - name: Build NotchMind
         run: |
           cd NotchMind
-          xcodebuild -project NotchMind.xcodeproj -scheme NotchMind -configuration Release -destination 'platform=macOS' build
-          echo "Build completed, finding app..."
-          find . -name "NotchMind.app" -type d
+          xcodebuild -project NotchMind.xcodeproj -scheme NotchMind -configuration Release -destination 'platform=macOS' build 2>&1 | tee build.log
+          echo "=== BUILD LOG END ==="
+          cat build.log | grep -E "error:|BUILD SUCCEEDED|BUILD FAILED"
 
       - name: Create DMG
         run: |
