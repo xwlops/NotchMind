@@ -8,19 +8,40 @@ struct PermissionManagementView: View {
     var body: some View {
         NavigationSplitView {
             // Sidebar with categories
-            List(selection: $selectedCategory) {
-                NavigationLink("All Requests", value: PermissionCategory.all)
+            List {
+                Button(action: { selectedCategory = .all }) {
+                    Label("All Requests", systemImage: "list.bullet")
+                        .foregroundColor(selectedCategory == .all ? .accentColor : .primary)
+                }
 
                 Section("By Risk Level") {
-                    NavigationLink("High Risk", value: PermissionCategory.highRisk)
-                    NavigationLink("Medium Risk", value: PermissionCategory.mediumRisk)
-                    NavigationLink("Low Risk", value: PermissionCategory.lowRisk)
+                    Button(action: { selectedCategory = .highRisk }) {
+                        Label("High Risk", systemImage: "exclamationmark.triangle.fill")
+                            .foregroundColor(selectedCategory == .highRisk ? .accentColor : .primary)
+                    }
+                    Button(action: { selectedCategory = .mediumRisk }) {
+                        Label("Medium Risk", systemImage: "exclamationmark.triangle")
+                            .foregroundColor(selectedCategory == .mediumRisk ? .accentColor : .primary)
+                    }
+                    Button(action: { selectedCategory = .lowRisk }) {
+                        Label("Low Risk", systemImage: "checkmark.circle")
+                            .foregroundColor(selectedCategory == .lowRisk ? .accentColor : .primary)
+                    }
                 }
 
                 Section("By Status") {
-                    NavigationLink("Pending", value: PermissionCategory.pending)
-                    NavigationLink("Approved", value: PermissionCategory.approved)
-                    NavigationLink("Denied", value: PermissionCategory.denied)
+                    Button(action: { selectedCategory = .pending }) {
+                        Label("Pending", systemImage: "clock")
+                            .foregroundColor(selectedCategory == .pending ? .accentColor : .primary)
+                    }
+                    Button(action: { selectedCategory = .approved }) {
+                        Label("Approved", systemImage: "checkmark.circle.fill")
+                            .foregroundColor(selectedCategory == .approved ? .accentColor : .primary)
+                    }
+                    Button(action: { selectedCategory = .denied }) {
+                        Label("Denied", systemImage: "xmark.circle.fill")
+                            .foregroundColor(selectedCategory == .denied ? .accentColor : .primary)
+                    }
                 }
             }
             .listStyle(SidebarListStyle())
