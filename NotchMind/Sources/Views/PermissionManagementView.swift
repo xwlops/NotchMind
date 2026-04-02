@@ -146,19 +146,6 @@ struct LegacyPermissionManagementView: View {
         }
     }
 }
-            // Main content - filtered permissions based on selection
-            PermissionRequestsList(selectedCategory: selectedCategory, permissions: appState.pendingPermissions)
-        } detail: {
-            // Detail view when a permission is selected
-            if let selectedRequest = selectedRequest {
-                PermissionDetailView(request: selectedRequest)
-            } else {
-                Text("Select a permission request to view details")
-                    .foregroundColor(.secondary)
-            }
-        }
-    }
-}
 
 // MARK: - Supporting Enums and Structures
 enum PermissionCategory: String, CaseIterable, Identifiable {
