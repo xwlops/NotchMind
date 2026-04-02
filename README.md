@@ -1,5 +1,6 @@
 # NotchMind - AI 编码助手控制中心
 
+
 ## 项目概述
 
 NotchMind 是一个 macOS 应用程序，将 MacBook 的 notch（刘海）区域转换为 AI 编码代理的控制面板。该应用程序监控多个 AI 工具（Claude Code、Codex、Gemini CLI、Cursor、OpenCode、Droid），允许用户批准权限、回答提示，并在不切换上下文的情况下跳转到终端。
