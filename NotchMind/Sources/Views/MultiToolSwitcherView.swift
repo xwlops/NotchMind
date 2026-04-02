@@ -202,21 +202,21 @@ struct SelectedToolPanel: View {
                     .font(.subheadline)
                     .fontWeight(.semibold)
 
-                Grid(horizontalSpacing: 16, verticalSpacing: 8) {
-                    GridRow {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
                         Text("Last Activity:")
                         Text(tool.lastActivity?.formatted() ?? "Never")
                             .foregroundColor(.secondary)
                     }
 
-                    GridRow {
+                    HStack {
                         Text("Type:")
                         Text(tool.type.rawValue)
                             .foregroundColor(.secondary)
                     }
 
                     if tool.isActive {
-                        GridRow {
+                        HStack {
                             Text("Status:")
                             HStack {
                                 Circle()

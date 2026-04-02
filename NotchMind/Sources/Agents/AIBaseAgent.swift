@@ -2,7 +2,7 @@ import Foundation
 import Combine
 
 /// Base implementation of AgentProtocol to facilitate integration of AI tools
-final class AIBaseAgent: AgentProtocol, ObservableObject {
+class AIBaseAgent: AgentProtocol, ObservableObject {
     // MARK: - AgentProtocol Properties
     let id: UUID
     let name: String
