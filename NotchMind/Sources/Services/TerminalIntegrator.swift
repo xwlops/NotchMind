@@ -43,8 +43,11 @@ final class TerminalIntegrator {
             // Find the application URL and use the modern API
             let urls = NSWorkspace.shared.urlsForApplications(withBundleIdentifier: bundleId)
             if let appUrl = urls.first {
-                var config = NSWorkspace.OpenConfiguration()
-                config.activates = true
+                let config: NSWorkspace.OpenConfiguration = {
+                    let config = NSWorkspace.OpenConfiguration()
+                    config.activates = true
+                    return config
+                }()
                 NSWorkspace.shared.openApplication(at: appUrl, configuration: config) { runningApp, error in
                     if let error = error {
                         print("Failed to launch \(bundleId): \(error)")
