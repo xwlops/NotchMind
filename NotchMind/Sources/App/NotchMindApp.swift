@@ -7,8 +7,9 @@ struct NotchMindApp: App {
     @SceneBuilder
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            NotchPanelView(startExpanded: true)
                 .environmentObject(appDelegate.appState)
+                .frame(minWidth: 1100, minHeight: 760)
         }
         .windowStyle(.hiddenTitleBar)
         .commands {

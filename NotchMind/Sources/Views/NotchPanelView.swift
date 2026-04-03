@@ -10,6 +10,10 @@ struct NotchPanelView: View {
     @State private var animateBackdrop = false
     @State private var animateCards = false
 
+    init(startExpanded: Bool = false) {
+        _isExpanded = State(initialValue: startExpanded)
+    }
+
     var body: some View {
         ZStack(alignment: .top) {
             animatedBackdrop
