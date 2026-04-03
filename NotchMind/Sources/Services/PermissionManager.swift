@@ -8,6 +8,7 @@ final class PermissionManager: ObservableObject {
     @Published var deniedHistory: [PermissionRequest] = []
 
     private var cancellables = Set<AnyCancellable>()
+    private let maxHistoryCount = 1000
 
     init() {
         loadHistory()
@@ -19,6 +20,7 @@ final class PermissionManager: ObservableObject {
 
         pendingRequests.removeAll { $0.id == request.id }
         approvedHistory.insert(updatedRequest, at: 0)
+        cleanupHistory()
         saveHistory()
         sendResponse(to: request, approved: true)
     }
@@ -29,6 +31,7 @@ final class PermissionManager: ObservableObject {
 
         pendingRequests.removeAll { $0.id == request.id }
         deniedHistory.insert(updatedRequest, at: 0)
+        cleanupHistory()
         saveHistory()
         sendResponse(to: request, approved: false)
     }
@@ -58,5 +61,15 @@ final class PermissionManager: ObservableObject {
 
     private func saveHistory() {
         // Save to UserDefaults in a full implementation
+    }
+
+    private func cleanupHistory() {
+        if approvedHistory.count > maxHistoryCount {
+            approvedHistory.removeLast(approvedHistory.count - maxHistoryCount)
+        }
+
+        if deniedHistory.count > maxHistoryCount {
+            deniedHistory.removeLast(deniedHistory.count - maxHistoryCount)
+        }
     }
 }

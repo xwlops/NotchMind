@@ -100,7 +100,15 @@ class NotchPanelController: NSObject {
         panel?.orderOut(nil)
     }
 
-    deinit {
+    func teardown() {
+        panel?.orderOut(nil)
         panel?.close()
+        panel = nil
+        hostingController = nil
+        notchPanelView = nil
+    }
+
+    deinit {
+        teardown()
     }
 }

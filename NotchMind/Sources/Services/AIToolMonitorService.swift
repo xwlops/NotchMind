@@ -12,8 +12,12 @@ final class AIToolMonitorService: ObservableObject {
     private var agentManager: AgentManager?
 
     private var monitorTimer: Timer?
-    private let scanInterval: TimeInterval = 2.0
+    private let scanInterval: TimeInterval = 10.0
     private var cancellables = Set<AnyCancellable>()
+    private var activeTasks = Set<Task<Void, Never>>()
+    private var processCache: [String: Bool] = [:]
+    private let cacheQueue = DispatchQueue(label: "com.notchmind.process-cache", attributes: .concurrent)
+    private let maxCacheSize = 50
 
     // Tool identifiers and process names to monitor
     private let toolProcesses: [(name: String, type: AITool.ToolType)] = [
@@ -52,11 +56,21 @@ final class AIToolMonitorService: ObservableObject {
         lastScanTime = Date()
 
         // Initial scan
-        scanForRunningTools()
+        checkAllToolsStatus()
 
         // Setup periodic scanning
-        monitorTimer = Timer.scheduledTimer(withTimeInterval: scanInterval, repeats: true) { [weak self] _ in
-            self?.scanForRunningTools()
+        monitorTimer = Timer.scheduledTimer(withTimeInterval: scanInterval, repeats: true) { [weak self] timer in
+            guard let self else {
+                timer.invalidate()
+                return
+            }
+
+            // Avoid overlapping scans that can increase memory and CPU pressure.
+            if !self.activeTasks.isEmpty {
+                return
+            }
+
+            self.checkAllToolsStatus()
         }
     }
 
@@ -64,34 +78,90 @@ final class AIToolMonitorService: ObservableObject {
         isMonitoring = false
         monitorTimer?.invalidate()
         monitorTimer = nil
+
+        for task in activeTasks {
+            task.cancel()
+        }
+        activeTasks.removeAll()
+        clearCache()
     }
 
-    private func scanForRunningTools() {
-        let runningApps = NSWorkspace.shared.runningApplications
-        let activeBundleIds = Set(runningApps.compactMap { $0.bundleIdentifier })
+    private func checkAllToolsStatus() {
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
 
-        var updatedTools: [AITool] = []
+            let runningApps = NSWorkspace.shared.runningApplications
+            let activeBundleIds = Set(runningApps.compactMap { $0.bundleIdentifier?.lowercased() })
+            var updatedTools: [AITool] = []
 
-        for toolInfo in toolProcesses {
-            let isActive = activeBundleIds.contains { $0.lowercased().contains(toolInfo.name.lowercased()) }
-            let existingTool = detectedTools.first { $0.type == toolInfo.type }
+            for toolInfo in self.toolProcesses {
+                if Task.isCancelled {
+                    return
+                }
 
-            var tool = existingTool ?? AITool(name: toolInfo.name, type: toolInfo.type)
-            tool.isActive = isActive
-            tool.status = isActive ? .running : .idle
-            tool.lastActivity = isActive ? Date() : tool.lastActivity
+                let isActive = self.isProcessRunning(toolName: toolInfo.name, activeBundleIds: activeBundleIds, runningApps: runningApps)
+                let existingTool = self.detectedTools.first { $0.type == toolInfo.type }
 
-            updatedTools.append(tool)
-        }
+                var tool = existingTool ?? AITool(name: toolInfo.name, type: toolInfo.type)
+                tool.isActive = isActive
+                tool.status = isActive ? .running : .idle
+                tool.lastActivity = isActive ? Date() : tool.lastActivity
+                updatedTools.append(tool)
+            }
 
-        DispatchQueue.main.async {
             self.detectedTools = updatedTools
             self.lastScanTime = Date()
+        }
+
+        activeTasks.insert(task)
+
+        Task { @MainActor [weak self] in
+            _ = await task.result
+            self?.activeTasks.remove(task)
+        }
+    }
+
+    private func isProcessRunning(
+        toolName: String,
+        activeBundleIds: Set<String>,
+        runningApps: [NSRunningApplication]
+    ) -> Bool {
+        if let cached = cacheQueue.sync(execute: { processCache[toolName] }) {
+            return cached
+        }
+
+        let loweredToolName = toolName.lowercased()
+
+        if activeBundleIds.contains(where: { $0.contains(loweredToolName) }) {
+            updateProcessCache(toolName: toolName, isRunning: true)
+            return true
+        }
+
+        let isRunning = runningApps.contains { app in
+            app.localizedName?.lowercased().contains(loweredToolName) ?? false
+        }
+
+        updateProcessCache(toolName: toolName, isRunning: isRunning)
+        return isRunning
+    }
+
+    private func updateProcessCache(toolName: String, isRunning: Bool) {
+        cacheQueue.async(flags: .barrier) {
+            if self.processCache.count >= self.maxCacheSize {
+                self.processCache.removeAll()
+            }
+            self.processCache[toolName] = isRunning
+        }
+    }
+
+    private func clearCache() {
+        cacheQueue.async(flags: .barrier) {
+            self.processCache.removeAll()
         }
     }
 
     func forceRefresh() {
-        scanForRunningTools()
+        checkAllToolsStatus()
     }
 
     /// Convert an AITool to its corresponding AgentProtocol implementation
@@ -114,5 +184,9 @@ final class AIToolMonitorService: ObservableObject {
             )
             detectedTools.append(newTool)
         }
+    }
+
+    deinit {
+        monitorTimer?.invalidate()
     }
 }

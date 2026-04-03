@@ -18,8 +18,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        stopServices()
-        notchPanelController = nil
+        cleanupResources()
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        cleanupResources()
+        return .terminateNow
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
@@ -57,5 +61,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func stopServices() {
         appState.aiMonitorService.stopMonitoring()
         appState.performanceMonitor.stopMonitoring()
+    }
+
+    private func cleanupResources() {
+        stopServices()
+        keyboardShortcutManager.setNotchPanelController(nil)
+        notchPanelController?.teardown()
+        notchPanelController = nil
+        cancellables.removeAll()
     }
 }

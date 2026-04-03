@@ -56,31 +56,28 @@ swift memory_benchmark.swift
 - 清理后：~XX MB
 - **结论：符合 ≤ 50MB 目标**
 
-## 四、代码变更摘要
+## 四、代码变更摘要（Release 构建目标）
 
-### 文件：`src/Services/AIToolMonitorService.swift`
-- 添加 `activeTasks` 跟踪异步任务
-- 改进定时器的弱引用处理
-- 增强 `stopMonitoring()` 的资源清理能力
+> 发布 DMG 当前构建的是 `NotchMind/` 子工程（`NotchMind/Sources`），以下为已落地在发布版本中的优化项。
 
-### 文件：`src/Services/PermissionManagerService.swift`
-- 添加 `maxHistoryCount` 常量限制
-- 实现 `cleanupHistory()` 自动清理方法
-- 在操作后自动清理旧记录
+### 文件：`NotchMind/Sources/Services/AIToolMonitorService.swift`
+- 添加 `activeTasks` 跟踪扫描任务，避免重复并发扫描
+- 扫描间隔调整为 `10s`，降低持续 CPU 压力
+- 添加 `processCache` 缓存与容量上限，减少重复状态计算
+- `stopMonitoring()` 中统一取消任务并清空缓存
 
-### 文件：`src/App/AppDelegate.swift`
-- 添加 `applicationShouldTerminate` 回调
-- 增强 `cleanupResources()` 方法
-- 确保状态栏项目被正确移除
+### 文件：`NotchMind/Sources/Services/PermissionManager.swift`
+- 添加 `maxHistoryCount` 常量限制历史记录长度
+- 实现 `cleanupHistory()` 自动清理旧记录
+- 在 `approve/deny` 后自动执行历史清理
 
-### 文件：`src/Views/NotchPanelController.swift`
-- 移除单例模式
-- 添加析构函数确保面板关闭
-- 改进资源管理
+### 文件：`NotchMind/Sources/App/AppDelegate.swift`
+- 添加 `applicationShouldTerminate` 回调并统一走资源清理
+- 增强 `cleanupResources()`，统一停止服务、释放订阅、解除面板引用
 
-### 文件：`src/ViewModels/NotchPanelViewModel.swift`
-- 更新构造函数以接收 `NotchPanelController` 实例
-- 更新 `togglePanel()` 方法使用实例化控制器
+### 文件：`NotchMind/Sources/Services/NotchPanelController.swift`
+- 增加 `teardown()` 显式释放 panel 与 hosting controller
+- 在 `deinit` 中调用 `teardown()`，确保窗口资源可回收
 
 ## 五、验证与测试
 
