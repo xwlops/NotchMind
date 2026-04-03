@@ -21,6 +21,20 @@
                ReferencedContainer = "container:NotchMind.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "46EBF61BCE3BB32EECD49F15"
+               BuildableName = "NotchMindTests.xctest"
+               BlueprintName = "NotchMindTests"
+               ReferencedContainer = "container:NotchMind.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -39,7 +53,20 @@
          </BuildableReference>
       </MacroExpansion>
       <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "46EBF61BCE3BB32EECD49F15"
+               BuildableName = "NotchMindTests.xctest"
+               BlueprintName = "NotchMindTests"
+               ReferencedContainer = "container:NotchMind.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
+      <CommandLineArguments>
+      </CommandLineArguments>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"

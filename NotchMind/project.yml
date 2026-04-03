@@ -37,11 +37,28 @@ targets:
         LD_RUNPATH_SEARCH_PATHS: $(inherited) @executable_path/../Frameworks
         PRODUCT_NAME: NotchMind
 
+  NotchMindTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: NotchMind
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.notchmind.tests
+        INFOPLIST_FILE: Tests/Info.plist
+
 schemes:
   NotchMind:
     build:
       targets:
         NotchMind: all
+        NotchMindTests: [test]
+    test:
+      config: Debug
+      targets:
+        - NotchMindTests
     run:
       config: Debug
     archive:
