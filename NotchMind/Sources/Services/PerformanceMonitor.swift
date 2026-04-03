@@ -49,20 +49,21 @@ final class PerformanceMonitor: ObservableObject {
     }
 
     private func updateCPUUsage() {
+        var numCPUsU: natural_t = 0
         var cpuInfo: processor_info_array_t?
         var numCpuInfo: mach_msg_type_number_t = 0
 
         let result = host_processor_info(
             mach_host_self(),
             PROCESSOR_CPU_LOAD_INFO,
-            &numCpuInfo,
+            &numCPUsU,
             &cpuInfo,
-            nil
+            &numCpuInfo
         )
 
         if result == KERN_SUCCESS, let info = cpuInfo {
             var totalUsage: Double = 0.0
-            let numCPUs = Int(numCpuInfo) / Int(CPU_STATE_MAX)
+            let numCPUs = Int(numCPUsU)
 
             for i in 0..<numCPUs {
                 let offset = Int(CPU_STATE_USER) + (i * Int(CPU_STATE_MAX))
@@ -79,7 +80,8 @@ final class PerformanceMonitor: ObservableObject {
                 self.cpuUsage = averageUsage
             }
 
-            vm_deallocate(mach_task_self_, vm_address_t(bitPattern: info), vm_size_t(numCpuInfo) * vm_size_t(MemoryLayout<integer_t>.size))
+            let infoSize = vm_size_t(numCpuInfo) * vm_size_t(MemoryLayout<integer_t>.stride)
+            vm_deallocate(mach_task_self_, vm_address_t(bitPattern: info), infoSize)
         }
     }
 }

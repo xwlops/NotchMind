@@ -30,9 +30,6 @@ public class NotchGeometry {
             height: notchHeight
         )
 
-        // 窗口相对于屏幕的位置
-        let windowOriginOnScreen = CGPoint(x: windowFrame.minX, y: screenFrame.maxY - windowFrame.maxY)
-
         // 计算窗口内的安全区域
         var safeArea = windowFrame
 
