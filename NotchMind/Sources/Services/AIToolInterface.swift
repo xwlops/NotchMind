@@ -85,14 +85,14 @@ final class AIToolManager: ObservableObject {
         connectedTools[tool.id] = tool
 
         // Set up event handlers
-        tool.onStatusChange = { [weak self] status in
+        tool.onStatusChange = { status in
             DispatchQueue.main.async {
                 // Update the tool in the main app state
                 // This would trigger UI updates
             }
         }
 
-        tool.onError = { [weak self] error in
+        tool.onError = { error in
             DispatchQueue.main.async {
                 // Handle error, perhaps log or show to user
                 print("AI Tool Error: \(error)")

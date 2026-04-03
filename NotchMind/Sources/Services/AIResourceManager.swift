@@ -12,8 +12,9 @@ class AIResourceManager: ObservableObject {
     @Published var agentManager: AgentManager
 
     private init() {
-        // Initialize with shared agent manager
-        self.agentManager = AgentManager()
+        let agentManager = AgentManager()
+
+        self.agentManager = agentManager
         self.monitorService = AIToolMonitorService(agentManager: agentManager)
     }
 
