@@ -4,6 +4,7 @@ import SwiftUI
 struct NotchMindApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
+    @SceneBuilder
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -14,11 +15,11 @@ struct NotchMindApp: App {
             NotchMindCommands(appState: appDelegate.appState)
         }
 
-        MenuBarExtra("NotchMind", systemImage: "cpu") {
-            MenuBarView(appState: appDelegate.appState)
+        if #available(macOS 13.0, *) {
+            MenuBarExtra("NotchMind", systemImage: "cpu") {
+                MenuBarView(appState: appDelegate.appState)
+            }
+            .menuBarExtraStyle(.menu)
         }
-        #if available(macOS 13.0, *)
-        .menuBarExtraStyle(.menu)
-        #endif
     }
 }
