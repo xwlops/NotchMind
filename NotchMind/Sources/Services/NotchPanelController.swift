@@ -33,21 +33,23 @@ class NotchPanelController: NSObject {
         guard let mainScreen = NSScreen.main else { return }
 
         // Calculate initial size and safe area considering notch
-        let initialSize = CGSize(width: 300, height: 400)
+        let initialSize = CGSize(width: 1024, height: 700)
 
         // Create the panel
         let panel = NSPanel(
             contentRect: CGRect(origin: mainScreen.frame.origin, size: initialSize),
-            styleMask: [.nonactivatingPanel, .closable, .resizable, .titled],
+            styleMask: [.nonactivatingPanel, .fullSizeContentView, .borderless],
             backing: .buffered,
             defer: false
         )
 
-        panel.title = "NotchMind"
         panel.isFloatingPanel = true
         panel.level = .floating
         panel.hidesOnDeactivate = true
-        panel.backgroundColor = NSColor.windowBackgroundColor
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = true
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
         // Safely get the app delegate to access the shared app state
         guard let appDelegate = NSApp.delegate as? AppDelegate else {
@@ -73,7 +75,7 @@ class NotchPanelController: NSObject {
             // Position panel below the notch
             let panelFrame = panel.frame
             let newX = notchRect.midX - (panelFrame.width / 2)
-            let newY = mainScreen.frame.maxY - notchRect.height - panelFrame.height - 20 // 20pt margin
+            let newY = mainScreen.frame.maxY - notchRect.height - panelFrame.height - 16
 
             panel.setFrame(CGRect(x: newX, y: newY, width: panelFrame.width, height: panelFrame.height), display: true)
         } else {
