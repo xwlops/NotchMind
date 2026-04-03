@@ -20,6 +20,12 @@ jobs:
           cd NotchMind
           xcodegen generate
 
+      - name: Downgrade project format for Xcode 15.4
+        run: |
+          cd NotchMind
+          perl -0pi -e 's/objectVersion = 77;/objectVersion = 60;/' NotchMind.xcodeproj/project.pbxproj
+          grep -n "objectVersion" NotchMind.xcodeproj/project.pbxproj
+
       - name: Build NotchMind
         run: |
           cd NotchMind
